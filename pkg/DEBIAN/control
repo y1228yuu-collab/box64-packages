@@ -1,0 +1,5 @@
+Package: box64
+Version: 0.4.3
+Architecture: aarch64
+Maintainer: yuuta
+Description: Box64 x86_64 emulator for ARM64 Termux
