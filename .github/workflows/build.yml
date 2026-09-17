@@ -15,55 +15,44 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y \
-            cmake ninja-build git \
-            build-essential dpkg-dev \
-            gcc-aarch64-linux-gnu \
-            g++-aarch64-linux-gnu
+          sudo apt install -y cmake ninja-build git wget unzip
+
+      - name: Setup Android NDK
+        run: |
+          wget -q https://dl.google.com/android/repository/android-ndk-r27c-linux.zip
+          unzip -q android-ndk-r27c-linux.zip
+          echo "ANDROID_NDK=$PWD/android-ndk-r27c" >> "$GITHUB_ENV"
 
       - name: Clone Box64
         run: |
           git clone --depth 1 https://github.com/ptitSeb/box64.git box64-src
 
-      - name: Build Winlator
+      - name: Build Winlator Box64
         run: |
+          export PATH="$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
+
           cmake -S box64-src -B build \
             -G Ninja \
             -DARM64=ON \
             -DARM_DYNAREC=ON \
+            -DANDROID=ON \
+            -DWINLATOR_GLIBC=ON \
             -DBOX32=OFF \
             -DNOGIT=ON \
-            -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
-            -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
-            -DCMAKE_ASM_COMPILER=aarch64-linux-gnu-gcc \
+            -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-28 \
             -DCMAKE_BUILD_TYPE=Release
 
           cmake --build build -j8
 
-      - name: Check Box64
+      - name: Check
         run: |
           file build/box64
           ls -lh build/box64
 
-      - name: Package
-        run: |
-          mkdir -p package/data/data/com.termux/files/usr/bin
-          cp build/box64 package/data/data/com.termux/files/usr/bin/box64
-
-          mkdir -p package/DEBIAN
-
-          cat > package/DEBIAN/control <<'CONTROL'
-          Package: box64-winlator
-          Version: 0.4.3
-          Architecture: aarch64
-          Maintainer: yuuta
-          Description: Box64 ARM64 for Winlator
-          CONTROL
-
-          dpkg-deb --build package box64-winlator_0.4.3_aarch64.deb
-
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: box64-winlator-aarch64
-          path: box64-winlator_0.4.3_aarch64.deb
+          name: box64-winlator-arm64
+          path: build/box64
