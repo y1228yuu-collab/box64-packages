@@ -25,7 +25,8 @@ jobs:
 
       - name: Clone Box64
         run: |
-          git clone --depth 1 https://github.com/ptitSeb/box64.git box64-src
+          git clone --depth 1 \
+            https://github.com/ptitSeb/box64.git box64-src
 
       - name: Build Winlator Box64
         run: |
@@ -57,6 +58,7 @@ jobs:
           name: box64-winlator-arm64
           path: build/box64
 
+
   build-winlator-apk:
     name: Build Winlator APK
     runs-on: ubuntu-latest
@@ -65,6 +67,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Download Box64
+        uses: actions/download-artifact@v4
+        with:
+          name: box64-winlator-arm64
+          path: custom-box64
+
+      - name: Check Box64
+        run: |
+          ls -lah custom-box64
+          file custom-box64/box64
 
       - name: Setup JDK
         uses: actions/setup-java@v5
@@ -76,45 +89,44 @@ jobs:
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME"
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-          find "$ANDROID_HOME" -name sdkmanager -type f -print || true
 
       - name: Checkout Winlator
         run: |
           git clone --depth 1 \
+            --recurse-submodules \
             https://github.com/brunodev85/winlator.git winlator
 
-      - name: Find Gradle
+      - name: Check Winlator App
         run: |
-          find winlator -maxdepth 6 -type f \
-            \( -name gradlew -o -name settings.gradle -o -name settings.gradle.kts \) \
+          ls -lah winlator
+          ls -lah winlator/app
+          find winlator/app -maxdepth 3 -type f \
+            \( -name gradlew -o -name build.gradle -o -name settings.gradle \) \
             -print
 
-      - name: Build Winlator APK
+      - name: Inspect Box64 locations
         run: |
-          GRADLEW=$(find winlator -type f -name gradlew -print -quit)
+          echo "Searching Winlator for Box64 files..."
+          find winlator -iname '*box64*' -print | head -200
 
-          if [ -z "$GRADLEW" ]; then
-            echo "gradlew not found"
-            find winlator -maxdepth 4 -type f | head -300
-            exit 1
-          fi
-
-          chmod +x "$GRADLEW"
-          cd "$(dirname "$GRADLEW")"
+      - name: Build Winlator APK
+        working-directory: winlator/app
+        run: |
+          chmod +x gradlew
 
           ./gradlew assembleRelease \
             --no-daemon \
             --parallel \
-            --max-workers=8 \
+            --max-workers=4 \
             --stacktrace
 
       - name: Find APK
         run: |
-          find winlator -type f -name "*.apk" -print
+          find winlator/app -type f -name "*.apk" -print
 
       - name: Upload Winlator APK
         uses: actions/upload-artifact@v4
         with:
           name: winlator-apk
           path: |
-            winlator/**/build/outputs/apk/**/*.apk
+            winlator/app/**/build/outputs/apk/**/*.apk
