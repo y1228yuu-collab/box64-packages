@@ -1,4 +1,4 @@
-name: Build Box64 Winlator
+name: Build Box64 + Winlator APK
 
 on:
   workflow_dispatch:
@@ -25,15 +25,12 @@ jobs:
 
       - name: Clone Box64
         run: |
-          git clone --depth 1 \
-            https://github.com/ptitSeb/box64.git box64-src
+          git clone --depth 1 https://github.com/ptitSeb/box64.git box64-src
 
       - name: Build Winlator Box64
         run: |
           export PATH="$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
-
-          cmake -S box64-src -B build \
-            -G Ninja \
+          cmake -S box64-src -B build -G Ninja \
             -DARM64=ON \
             -DARM_DYNAREC=ON \
             -DANDROID=ON \
@@ -44,7 +41,6 @@ jobs:
             -DANDROID_ABI=arm64-v8a \
             -DANDROID_PLATFORM=android-28 \
             -DCMAKE_BUILD_TYPE=Release
-
           cmake --build build -j8
 
       - name: Check Box64
@@ -57,7 +53,6 @@ jobs:
         with:
           name: box64-winlator-arm64
           path: build/box64
-
 
   build-winlator-apk:
     name: Build Winlator APK
@@ -74,49 +69,39 @@ jobs:
           name: box64-winlator-arm64
           path: custom-box64
 
-      - name: Check Box64
-        run: |
-          ls -lah custom-box64
-          file custom-box64/box64
-
       - name: Setup JDK
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Android SDK
-        run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-
       - name: Checkout Winlator
         run: |
-          git clone --depth 1 \
-            --recurse-submodules \
+          git clone --depth 1 --recurse-submodules \
             https://github.com/brunodev85/winlator.git winlator
 
-      - name: Check Winlator App
+      - name: Configure ARM64 only
         run: |
-          ls -lah winlator
-          ls -lah winlator/app
-          find winlator/app -maxdepth 3 -type f \
-            \( -name gradlew -o -name build.gradle -o -name settings.gradle \) \
-            -print
-
-      - name: Inspect Box64 locations
-        run: |
-          echo "Searching Winlator for Box64 files..."
-          find winlator -iname '*box64*' -print | head -200
+          cd winlator/app
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("app/build.gradle")
+          s = p.read_text()
+          if "abiFilters" not in s:
+              s = s.replace(
+                  "defaultConfig {",
+                  'defaultConfig {\n        ndk {\n            abiFilters "arm64-v8a"\n        }',
+                  1
+              )
+              p.write_text(s)
+          PY
 
       - name: Build Winlator APK
         working-directory: winlator/app
         run: |
           chmod +x gradlew
-
           ./gradlew assembleRelease \
             --no-daemon \
-            --parallel \
             --max-workers=4 \
             --stacktrace
 
