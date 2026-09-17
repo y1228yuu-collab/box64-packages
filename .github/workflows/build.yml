@@ -16,8 +16,10 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y \
-            cmake ninja-build git wget unzip \
-            build-essential dpkg-dev
+            cmake ninja-build git \
+            build-essential dpkg-dev \
+            gcc-aarch64-linux-gnu \
+            g++-aarch64-linux-gnu
 
       - name: Clone Box64
         run: |
@@ -29,12 +31,14 @@ jobs:
             -G Ninja \
             -DARM64=ON \
             -DARM_DYNAREC=ON \
-            -DWINLATOR=ON \
             -DBOX32=OFF \
             -DNOGIT=ON \
+            -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
+            -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
+            -DCMAKE_ASM_COMPILER=aarch64-linux-gnu-gcc \
             -DCMAKE_BUILD_TYPE=Release
 
-          cmake --build build -j2
+          cmake --build build -j8
 
       - name: Check Box64
         run: |
@@ -48,13 +52,13 @@ jobs:
 
           mkdir -p package/DEBIAN
 
-          cat > package/DEBIAN/control <<'EOF'
+          cat > package/DEBIAN/control <<'CONTROL'
           Package: box64-winlator
           Version: 0.4.3
           Architecture: aarch64
           Maintainer: yuuta
-          Description: Box64 for Winlator ARM64
-          EOF
+          Description: Box64 ARM64 for Winlator
+          CONTROL
 
           dpkg-deb --build package box64-winlator_0.4.3_aarch64.deb
 
