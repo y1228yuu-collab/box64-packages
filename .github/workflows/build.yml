@@ -16,7 +16,10 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y \
-            git cmake ninja-build build-essential dpkg-dev
+            cmake ninja-build git wget unzip \
+            build-essential \
+            gcc-aarch64-linux-gnu \
+            g++-aarch64-linux-gnu
 
       - name: Clone Box64
         run: |
@@ -24,27 +27,33 @@ jobs:
 
       - name: Build ARM64
         run: |
-          cmake -S box64-src -B build \
+          cmake -S box64-src -B build-arm64 \
             -G Ninja \
             -DARM64=ON \
             -DARM_DYNAREC=ON \
             -DTERMUX=ON \
             -DBOX32=OFF \
             -DNOGIT=ON \
+            -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
+            -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
             -DCMAKE_BUILD_TYPE=Release
 
-          cmake --build build -j2
+          cmake --build build-arm64 -j2
+
+      - name: Check ARM64
+        run: |
+          file build-arm64/box64
 
       - name: Package ARM64
         run: |
-          rm -rf package
-          mkdir -p package/DEBIAN
-          mkdir -p package/data/data/com.termux/files/usr/bin
+          rm -rf package-arm64
+          mkdir -p package-arm64/DEBIAN
+          mkdir -p package-arm64/data/data/com.termux/files/usr/bin
 
-          cp build/box64 \
-            package/data/data/com.termux/files/usr/bin/box64
+          cp build-arm64/box64 \
+            package-arm64/data/data/com.termux/files/usr/bin/box64
 
-          cat > package/DEBIAN/control <<'CONTROL'
+          cat > package-arm64/DEBIAN/control <<'CONTROL'
           Package: box64
           Version: 0.4.3
           Architecture: aarch64
@@ -52,75 +61,13 @@ jobs:
           Description: Box64 x86_64 emulator for ARM64 Termux
           CONTROL
 
-          chmod 755 package/DEBIAN
-          chmod 755 package/DEBIAN/control
-          chmod 755 package/data/data/com.termux/files/usr/bin/box64
+          chmod 755 package-arm64/DEBIAN
+          chmod 755 package-arm64/data/data/com.termux/files/usr/bin/box64
 
-          dpkg-deb --build package box64_0.4.3_aarch64.deb
+          dpkg-deb --build package-arm64 box64_0.4.3_aarch64.deb
 
       - name: Upload ARM64
         uses: actions/upload-artifact@v4
         with:
           name: box64-aarch64
           path: box64_0.4.3_aarch64.deb
-
-
-  arm:
-    name: Box64 ARM + BOX32
-    runs-on: ubuntu-24.04
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y \
-            git cmake ninja-build build-essential dpkg-dev
-
-      - name: Clone Box64
-        run: |
-          git clone --depth 1 https://github.com/ptitSeb/box64.git box64-src
-
-      - name: Build ARM + BOX32
-        run: |
-          cmake -S box64-src -B build \
-            -G Ninja \
-            -DARM64=ON \
-            -DARM_DYNAREC=ON \
-            -DTERMUX=ON \
-            -DBOX32=ON \
-            -DNOGIT=ON \
-            -DCMAKE_BUILD_TYPE=Release
-
-          cmake --build build -j2
-
-      - name: Package ARM
-        run: |
-          rm -rf package
-          mkdir -p package/DEBIAN
-          mkdir -p package/data/data/com.termux/files/usr/bin
-
-          cp build/box64 \
-            package/data/data/com.termux/files/usr/bin/box64
-
-          cat > package/DEBIAN/control <<'CONTROL'
-          Package: box64
-          Version: 0.4.3
-          Architecture: aarch64
-          Maintainer: yuuta
-          Description: Box64 x86_64 emulator for ARM64 Termux with BOX32
-          CONTROL
-
-          chmod 755 package/DEBIAN
-          chmod 755 package/DEBIAN/control
-          chmod 755 package/data/data/com.termux/files/usr/bin/box64
-
-          dpkg-deb --build package box64_0.4.3_aarch64-box32.deb
-
-      - name: Upload ARM + BOX32
-        uses: actions/upload-artifact@v4
-        with:
-          name: box64-aarch64-box32
-          path: box64_0.4.3_aarch64-box32.deb
