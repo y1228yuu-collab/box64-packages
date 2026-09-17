@@ -67,28 +67,39 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
       - name: Checkout Winlator
         run: |
-          git clone --depth 1 --branch main \
+          git clone --depth 1 \
             https://github.com/brunodev85/winlator.git winlator
 
-      - name: Make Gradle executable
+      - name: Check Winlator source
         run: |
-          chmod +x winlator/gradlew
+          echo "=== Winlator root ==="
+          ls -la winlator
+          echo "=== Gradle files ==="
+          find winlator -maxdepth 4 -type f \
+            \( -name "gradlew" -o -name "settings.gradle*" -o -name "build.gradle*" \) \
+            -print
 
-      - name: Build APK
+      - name: Build Winlator APK
         working-directory: winlator
         run: |
-          ./gradlew assembleRelease --no-daemon --stacktrace
+          if [ -f ./gradlew ]; then
+            chmod +x ./gradlew
+            ./gradlew assembleRelease --no-daemon --stacktrace
+          else
+            echo "gradlew not found"
+            exit 1
+          fi
 
       - name: Upload Winlator APK
         uses: actions/upload-artifact@v4
         with:
           name: winlator-apk
           path: |
-            winlator/app/build/outputs/apk/release/*.apk
+            winlator/**/build/outputs/apk/**/*.apk
