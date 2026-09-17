@@ -1,0 +1,126 @@
+name: Build Box64 Packages
+
+on:
+  workflow_dispatch:
+
+jobs:
+  arm64:
+    name: Box64 ARM64
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            git cmake ninja-build build-essential dpkg-dev
+
+      - name: Clone Box64
+        run: |
+          git clone --depth 1 https://github.com/ptitSeb/box64.git box64-src
+
+      - name: Build ARM64
+        run: |
+          cmake -S box64-src -B build \
+            -G Ninja \
+            -DARM64=ON \
+            -DARM_DYNAREC=ON \
+            -DTERMUX=ON \
+            -DBOX32=OFF \
+            -DNOGIT=ON \
+            -DCMAKE_BUILD_TYPE=Release
+
+          cmake --build build -j2
+
+      - name: Package ARM64
+        run: |
+          rm -rf package
+          mkdir -p package/DEBIAN
+          mkdir -p package/data/data/com.termux/files/usr/bin
+
+          cp build/box64 \
+            package/data/data/com.termux/files/usr/bin/box64
+
+          cat > package/DEBIAN/control <<'CONTROL'
+          Package: box64
+          Version: 0.4.3
+          Architecture: aarch64
+          Maintainer: yuuta
+          Description: Box64 x86_64 emulator for ARM64 Termux
+          CONTROL
+
+          chmod 755 package/DEBIAN
+          chmod 755 package/DEBIAN/control
+          chmod 755 package/data/data/com.termux/files/usr/bin/box64
+
+          dpkg-deb --build package box64_0.4.3_aarch64.deb
+
+      - name: Upload ARM64
+        uses: actions/upload-artifact@v4
+        with:
+          name: box64-aarch64
+          path: box64_0.4.3_aarch64.deb
+
+
+  arm:
+    name: Box64 ARM + BOX32
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            git cmake ninja-build build-essential dpkg-dev
+
+      - name: Clone Box64
+        run: |
+          git clone --depth 1 https://github.com/ptitSeb/box64.git box64-src
+
+      - name: Build ARM + BOX32
+        run: |
+          cmake -S box64-src -B build \
+            -G Ninja \
+            -DARM64=ON \
+            -DARM_DYNAREC=ON \
+            -DTERMUX=ON \
+            -DBOX32=ON \
+            -DNOGIT=ON \
+            -DCMAKE_BUILD_TYPE=Release
+
+          cmake --build build -j2
+
+      - name: Package ARM
+        run: |
+          rm -rf package
+          mkdir -p package/DEBIAN
+          mkdir -p package/data/data/com.termux/files/usr/bin
+
+          cp build/box64 \
+            package/data/data/com.termux/files/usr/bin/box64
+
+          cat > package/DEBIAN/control <<'CONTROL'
+          Package: box64
+          Version: 0.4.3
+          Architecture: aarch64
+          Maintainer: yuuta
+          Description: Box64 x86_64 emulator for ARM64 Termux with BOX32
+          CONTROL
+
+          chmod 755 package/DEBIAN
+          chmod 755 package/DEBIAN/control
+          chmod 755 package/data/data/com.termux/files/usr/bin/box64
+
+          dpkg-deb --build package box64_0.4.3_aarch64-box32.deb
+
+      - name: Upload ARM + BOX32
+        uses: actions/upload-artifact@v4
+        with:
+          name: box64-aarch64-box32
+          path: box64_0.4.3_aarch64-box32.deb
