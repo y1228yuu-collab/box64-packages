@@ -1,12 +1,12 @@
-name: Build Box64 Packages
+name: Build Box64 Winlator
 
 on:
   workflow_dispatch:
 
 jobs:
-  arm64:
-    name: Box64 ARM64
-    runs-on: ubuntu-24.04
+  build-winlator:
+    name: Box64 Winlator ARM64
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -17,57 +17,49 @@ jobs:
           sudo apt update
           sudo apt install -y \
             cmake ninja-build git wget unzip \
-            build-essential \
-            gcc-aarch64-linux-gnu \
-            g++-aarch64-linux-gnu
+            build-essential dpkg-dev
 
       - name: Clone Box64
         run: |
           git clone --depth 1 https://github.com/ptitSeb/box64.git box64-src
 
-      - name: Build ARM64
+      - name: Build Winlator
         run: |
-          cmake -S box64-src -B build-arm64 \
+          cmake -S box64-src -B build \
             -G Ninja \
             -DARM64=ON \
             -DARM_DYNAREC=ON \
-            -DTERMUX=ON \
+            -DWINLATOR=ON \
             -DBOX32=OFF \
             -DNOGIT=ON \
-            -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
-            -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
             -DCMAKE_BUILD_TYPE=Release
 
-          cmake --build build-arm64 -j2
+          cmake --build build -j2
 
-      - name: Check ARM64
+      - name: Check Box64
         run: |
-          file build-arm64/box64
+          file build/box64
+          ls -lh build/box64
 
-      - name: Package ARM64
+      - name: Package
         run: |
-          rm -rf package-arm64
-          mkdir -p package-arm64/DEBIAN
-          mkdir -p package-arm64/data/data/com.termux/files/usr/bin
+          mkdir -p package/data/data/com.termux/files/usr/bin
+          cp build/box64 package/data/data/com.termux/files/usr/bin/box64
 
-          cp build-arm64/box64 \
-            package-arm64/data/data/com.termux/files/usr/bin/box64
+          mkdir -p package/DEBIAN
 
-          cat > package-arm64/DEBIAN/control <<'CONTROL'
-          Package: box64
+          cat > package/DEBIAN/control <<'EOF'
+          Package: box64-winlator
           Version: 0.4.3
           Architecture: aarch64
           Maintainer: yuuta
-          Description: Box64 x86_64 emulator for ARM64 Termux
-          CONTROL
+          Description: Box64 for Winlator ARM64
+          EOF
 
-          chmod 755 package-arm64/DEBIAN
-          chmod 755 package-arm64/data/data/com.termux/files/usr/bin/box64
+          dpkg-deb --build package box64-winlator_0.4.3_aarch64.deb
 
-          dpkg-deb --build package-arm64 box64_0.4.3_aarch64.deb
-
-      - name: Upload ARM64
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: box64-aarch64
-          path: box64_0.4.3_aarch64.deb
+          name: box64-winlator-aarch64
+          path: box64-winlator_0.4.3_aarch64.deb
