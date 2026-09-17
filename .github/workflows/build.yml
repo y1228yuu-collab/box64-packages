@@ -14,8 +14,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt update
-          sudo apt install -y cmake ninja-build git wget unzip
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build git wget unzip
 
       - name: Setup Android NDK
         run: |
@@ -46,12 +46,12 @@ jobs:
 
           cmake --build build -j8
 
-      - name: Check
+      - name: Check Box64
         run: |
           file build/box64
           ls -lh build/box64
 
-      - name: Upload
+      - name: Upload Box64
         uses: actions/upload-artifact@v4
         with:
           name: box64-winlator-arm64
@@ -72,22 +72,21 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Android SDK
+      - name: Android SDK
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME"
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-          ls -la "$ANDROID_HOME"
-          find "$ANDROID_HOME" -name sdkmanager -type f -print
+          find "$ANDROID_HOME" -name sdkmanager -type f -print || true
 
       - name: Checkout Winlator
         run: |
           git clone --depth 1 \
             https://github.com/brunodev85/winlator.git winlator
 
-      - name: Find Gradle project
+      - name: Find Gradle
         run: |
-          find winlator -maxdepth 5 -type f \
-            \( -name "gradlew" -o -name "settings.gradle" -o -name "settings.gradle.kts" \) \
+          find winlator -maxdepth 6 -type f \
+            \( -name gradlew -o -name settings.gradle -o -name settings.gradle.kts \) \
             -print
 
       - name: Build Winlator APK
@@ -95,19 +94,19 @@ jobs:
           GRADLEW=$(find winlator -type f -name gradlew -print -quit)
 
           if [ -z "$GRADLEW" ]; then
-            echo "ERROR: gradlew not found"
-            find winlator -maxdepth 3 -type f | head -200
+            echo "gradlew not found"
+            find winlator -maxdepth 4 -type f | head -300
             exit 1
           fi
 
-          echo "Using: $GRADLEW"
           chmod +x "$GRADLEW"
           cd "$(dirname "$GRADLEW")"
 
           ./gradlew assembleRelease \
             --no-daemon \
-            --stacktrace \
-            --parallel
+            --parallel \
+            --max-workers=8 \
+            --stacktrace
 
       - name: Find APK
         run: |
