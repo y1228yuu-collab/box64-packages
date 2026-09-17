@@ -72,30 +72,45 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Checkout Winlator
         run: |
           git clone --depth 1 \
             https://github.com/brunodev85/winlator.git winlator
 
-      - name: Check Winlator source
+      - name: Find Gradle project
         run: |
-          echo "=== Winlator root ==="
-          ls -la winlator
-          echo "=== Gradle files ==="
-          find winlator -maxdepth 4 -type f \
-            \( -name "gradlew" -o -name "settings.gradle*" -o -name "build.gradle*" \) \
+          echo "=== Winlator files ==="
+          find winlator -maxdepth 5 -type f \
+            \( -name "gradlew" -o -name "settings.gradle" -o -name "settings.gradle.kts" \) \
             -print
 
       - name: Build Winlator APK
-        working-directory: winlator
         run: |
-          if [ -f ./gradlew ]; then
-            chmod +x ./gradlew
-            ./gradlew assembleRelease --no-daemon --stacktrace
-          else
-            echo "gradlew not found"
+          GRADLEW=$(find winlator -type f -name gradlew -print -quit)
+
+          if [ -z "$GRADLEW" ]; then
+            echo "ERROR: gradlew not found anywhere in Winlator source"
+            find winlator -maxdepth 3 -type f | head -200
             exit 1
           fi
+
+          echo "Using: $GRADLEW"
+
+          chmod +x "$GRADLEW"
+
+          cd "$(dirname "$GRADLEW")"
+
+          ./gradlew assembleRelease \
+            --no-daemon \
+            --stacktrace \
+            --parallel
+
+      - name: Find APK
+        run: |
+          find winlator -type f -name "*.apk" -print
 
       - name: Upload Winlator APK
         uses: actions/upload-artifact@v4
