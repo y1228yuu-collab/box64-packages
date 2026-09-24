@@ -82,6 +82,14 @@ jobs:
 
       - name: Configure ARM64 only
         run: |
+          echo "=== ALL ABI REFERENCES ==="
+          grep -RniE "armeabi-v7a|abiFilters|abiVersions|splits.*abi" winlator --exclude-dir=.git --exclude-dir=build --exclude-dir=.gradle || true
+          exit 1
+        run: |
+          echo "=== ALL ABI REFERENCES ==="
+          grep -RniE "armeabi-v7a|abiFilters|abiVersions|splits.*abi" winlator --exclude-dir=.git --exclude-dir=build --exclude-dir=.gradle || true
+          exit 1
+        run: |
           cd winlator/app
 
           echo "=== Before ==="
