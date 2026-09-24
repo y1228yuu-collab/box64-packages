@@ -84,41 +84,18 @@ jobs:
         run: |
           cd winlator/app
 
-          python3 - <<'PY2'
-          from pathlib import Path
+          echo "=== Before ==="
+          grep -Rni "armeabi-v7a" app --exclude-dir=build || true
 
-          p = Path("app/build.gradle")
-          s = p.read_text()
+          echo "=== Replace all armeabi-v7a ==="
+          find app -type f \( -name "*.gradle" -o -name "*.gradle.kts" -o -name "*.properties" -o -name "*.cmake" -o -name "CMakeLists.txt" \) \
+            -exec sed -i 's/armeabi-v7a/arm64-v8a/g' {} +
 
-          s = s.replace(
-              'abiFilters "armeabi-v7a"',
-              'abiFilters "arm64-v8a"'
-          )
+          echo "=== After ==="
+          grep -Rni "armeabi-v7a" app --exclude-dir=build || true
 
-          if "abiFilters" not in s:
-              s = s.replace(
-                  "defaultConfig {",
-                  """defaultConfig {
-                  ndk {
-                      abiFilters "arm64-v8a"
-                  }""",
-                  1
-              )
-
-          p.write_text(s)
-
-          print("=== ABI settings ===")
-          for i, line in enumerate(s.splitlines(), 1):
-              if "abiFilters" in line or "arm64-v8a" in line:
-                  print(f"{i}: {line}")
-          PY2
-
-          echo "=== Searching for armeabi-v7a ==="
-          grep -Rni "armeabi-v7a" app --include='*.gradle' --include='*.gradle.kts' || true
-
-          echo "=== Searching for ABI configuration ==="
-          grep -RniE "abiFilters|abiVersions|armeabi|arm64-v8a" app             --include='*.gradle'             --include='*.gradle.kts' || true
-
+          echo "=== ARM64 ==="
+          grep -Rni "arm64-v8a" app --include='*.gradle' --include='*.gradle.kts' || true
       - name: Build Winlator APK
         working-directory: winlator/app
         run: |
